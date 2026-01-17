@@ -21,22 +21,45 @@ interface Trade {
   closePrice?: number;
 }
 
+interface AssetData {
+  name: string;
+  symbol: string;
+  price: number;
+  volatility: number;
+}
+
+const ASSETS: AssetData[] = [
+  { name: 'Bitcoin', symbol: 'BTC/USDT', price: 102500, volatility: 800 },
+  { name: 'Ethereum', symbol: 'ETH/USDT', price: 3850, volatility: 50 },
+  { name: 'Ripple', symbol: 'XRP/USDT', price: 2.85, volatility: 0.08 },
+  { name: 'Litecoin', symbol: 'LTC/USDT', price: 145, volatility: 5 },
+  { name: 'Solana', symbol: 'SOL/USDT', price: 198, volatility: 8 },
+  { name: 'Euro', symbol: 'EUR/USD', price: 1.0485, volatility: 0.002 },
+  { name: 'Gold', symbol: 'XAU/USD', price: 2850, volatility: 15 },
+  { name: 'Oil', symbol: 'WTI/USD', price: 78.5, volatility: 1.2 },
+];
+
 const Index = () => {
   const [isDemoMode, setIsDemoMode] = useState(true);
   const [demoBalance, setDemoBalance] = useState(10000);
   const [realBalance, setRealBalance] = useState(0);
-  const [currentPrice, setCurrentPrice] = useState(45250.50);
+  const [selectedAsset, setSelectedAsset] = useState<AssetData>(ASSETS[0]);
+  const [currentPrice, setCurrentPrice] = useState(selectedAsset.price);
   const [priceHistory, setPriceHistory] = useState<number[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradeAmount, setTradeAmount] = useState('100');
-  const [selectedAsset] = useState('BTC/USDT');
 
   const balance = isDemoMode ? demoBalance : realBalance;
 
   useEffect(() => {
+    setCurrentPrice(selectedAsset.price);
+    setPriceHistory([selectedAsset.price]);
+  }, [selectedAsset]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setCurrentPrice(prev => {
-        const change = (Math.random() - 0.5) * 100;
+        const change = (Math.random() - 0.5) * selectedAsset.volatility * 2;
         const newPrice = prev + change;
         setPriceHistory(history => [...history.slice(-50), newPrice]);
         
@@ -58,7 +81,7 @@ const Index = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedAsset.volatility]);
 
   const openTrade = (type: 'LONG' | 'SHORT') => {
     const amount = parseFloat(tradeAmount);
@@ -76,7 +99,7 @@ const Index = () => {
     const newTrade: Trade = {
       id: Date.now().toString(),
       type,
-      asset: selectedAsset,
+      asset: selectedAsset.symbol,
       entryPrice: currentPrice,
       amount,
       timestamp: Date.now(),
@@ -170,10 +193,25 @@ const Index = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card className="p-6 bg-card border-border">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-semibold">{selectedAsset}</h2>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <select 
+                      value={selectedAsset.symbol}
+                      onChange={(e) => {
+                        const asset = ASSETS.find(a => a.symbol === e.target.value);
+                        if (asset) setSelectedAsset(asset);
+                      }}
+                      className="text-xl font-semibold bg-secondary border border-border rounded-lg px-3 py-2 cursor-pointer hover:bg-secondary/80 transition-colors"
+                    >
+                      {ASSETS.map(asset => (
+                        <option key={asset.symbol} value={asset.symbol}>
+                          {asset.symbol}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-3xl font-bold">${currentPrice.toFixed(2)}</span>
+                    <span className="text-3xl font-bold">${currentPrice.toFixed(selectedAsset.symbol.includes('XRP') || selectedAsset.symbol.includes('EUR') ? 4 : 2)}</span>
                     <Badge variant={parseFloat(priceChangePercent) >= 0 ? "default" : "destructive"} className={parseFloat(priceChangePercent) >= 0 ? "bg-green-600" : ""}>
                       {parseFloat(priceChangePercent) >= 0 ? '+' : ''}{priceChangePercent}%
                     </Badge>
