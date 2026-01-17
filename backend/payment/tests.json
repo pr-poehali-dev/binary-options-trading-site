@@ -1,0 +1,36 @@
+{
+  "tests": [
+    {
+      "name": "Test payment creation with valid amount",
+      "method": "POST",
+      "path": "/",
+      "headers": {
+        "X-User-Id": "test_user_123"
+      },
+      "body": {
+        "amount": 1000
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "orderId": "string",
+        "amount": 1000
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Test payment with amount below minimum",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "amount": 5
+      },
+      "expectedStatus": 400,
+      "expectedBody": {
+        "success": false,
+        "error": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

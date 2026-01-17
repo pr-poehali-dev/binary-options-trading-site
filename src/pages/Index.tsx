@@ -48,6 +48,8 @@ const Index = () => {
   const [priceHistory, setPriceHistory] = useState<number[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradeAmount, setTradeAmount] = useState('100');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const balance = isDemoMode ? demoBalance : realBalance;
 
@@ -150,6 +152,53 @@ const Index = () => {
   const winRate = closedTrades.length > 0 
     ? (closedTrades.filter(t => (t.profit || 0) > 0).length / closedTrades.length * 100).toFixed(1)
     : '0.0';
+
+  const handleTBankPayment = async () => {
+    if (!depositAmount || parseFloat(depositAmount) < 100) {
+      toast.error('Минимальная сумма пополнения: 100 ₽');
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      const response = await fetch('https://functions.poehali.dev/7023e463-c750-4398-8c69-faa3b6184e07', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': 'user_' + Date.now()
+        },
+        body: JSON.stringify({
+          amount: parseFloat(depositAmount)
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.paymentData) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://securepay.tinkoff.ru/rest/Init';
+        form.style.display = 'none';
+
+        Object.entries(data.paymentData).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+      } else {
+        toast.error(data.error || 'Ошибка создания платежа');
+      }
+    } catch (error) {
+      toast.error('Ошибка соединения с платёжной системой');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   const priceChange = priceHistory.length > 1 
     ? currentPrice - priceHistory[0] 
@@ -376,16 +425,43 @@ const Index = () => {
                 </TabsList>
                 
                 <TabsContent value="deposit" className="space-y-4 mt-4">
-                  <Button className="w-full" variant="outline">
-                    <Icon name="Bitcoin" className="mr-2" size={20} />
-                    Криптовалюта
-                  </Button>
-                  <Button className="w-full" variant="outline">
+                  <div className="space-y-3">
+                    <Label htmlFor="deposit-amount" className="text-sm text-muted-foreground">
+                      Сумма пополнения (₽)
+                    </Label>
+                    <Input
+                      id="deposit-amount"
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      className="bg-secondary border-border"
+                      placeholder="1000"
+                      min="100"
+                    />
+                  </div>
+                  
+                  <Button 
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                    onClick={handleTBankPayment}
+                    disabled={isProcessingPayment || isDemoMode}
+                  >
                     <Icon name="CreditCard" className="mr-2" size={20} />
-                    Банковская карта
+                    {isProcessingPayment ? 'Обработка...' : 'Оплатить через Т-Банк'}
                   </Button>
+                  
+                  <Button className="w-full" variant="outline" disabled>
+                    <Icon name="Bitcoin" className="mr-2" size={20} />
+                    Криптовалюта (скоро)
+                  </Button>
+                  
+                  {isDemoMode && (
+                    <p className="text-xs text-yellow-500 text-center mt-2">
+                      ⚠️ Переключитесь на реальный счёт для пополнения
+                    </p>
+                  )}
+                  
                   <p className="text-xs text-muted-foreground text-center mt-2">
-                    Минимальная сумма пополнения: $10
+                    Минимальная сумма пополнения: 100 ₽
                   </p>
                 </TabsContent>
                 
